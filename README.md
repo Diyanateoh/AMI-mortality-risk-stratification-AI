@@ -64,13 +64,6 @@ Each row corresponds to a single patient record. Below is a sample row illustrat
 | `FU_30days`        | Follow-up time in days (e.g., 30)                      |
 | `event_status_30`  | 0 = Alive, 1 = Deceased within 30 days                 |
 
-> A dummy input file (`data/dummy_input_30days.csv`) is provided for reference. It contains column names only (no patient data).
-
-
-```
-
----
-
 ## Software Requirements
 
 This project requires **R (>= 4.2.0)** and the following CRAN packages:

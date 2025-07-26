@@ -1,4 +1,4 @@
-# AMI-mortality-risk-stratification-AI
+# AMI-mortality-risk-stratification-ML
 
 This repository contains code and documentation for a two-stage mortality risk stratification approach in patients with acute myocardial infarction (AMI), integrating supervised regression and unsupervised clustering approaches.
 

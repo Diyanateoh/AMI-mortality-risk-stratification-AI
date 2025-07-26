@@ -96,7 +96,3 @@ These measures support consistent, transparent, and ethically compliant analysis
 The dataset used in this study is not publicly available due to patient privacy protection and institutional regulations. 
 
 ---
-
-## License
-
-This project is licensed under the MIT License. See `LICENSE` for terms.

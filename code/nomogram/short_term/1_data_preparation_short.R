@@ -4,15 +4,11 @@
 # ------------------------------------------------------------------------------
 # Module: 1_data_preparation_short.R
 # Purpose: Preprocessing for 30-day mortality prediction following AMI
-# Input: Raw .sav dataset (SPSS format)
 # Output: Cleaned dataset with harmonized variable types and structure
 # ------------------------------------------------------------------------------
 # Description:
 # This script performs initial preprocessing of acute myocardial infarction (AMI)
-# patient data for short-term (30-day) mortality analysis. The transformations
-# are consistent with the clinical variable definitions used in the corresponding
-# manuscript, including removal of non-predictive variables and harmonization of
-# categorical encodings. Continuous predictors are retained without categorization.
+# patient data for short-term (30-day) mortality analysis.
 #
 # Key transformations:
 # - Exclusion of ID and non-modeled behavioral or seasonal variables
@@ -23,10 +19,6 @@
 # The processed dataset is ready for:
 # - Class balancing via ROSE (2_ROSE_balancing_short.R)
 # - Logistic regression modeling and nomogram construction (3_model_logistic_nomogram.R)
-#
-# Note: A dummy input schema (column-only .csv) is available in /data.
-# ------------------------------------------------------------------------------
-```
 
 ```r
 library(haven)

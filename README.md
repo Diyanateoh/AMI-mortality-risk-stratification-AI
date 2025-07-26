@@ -93,7 +93,7 @@ These measures support consistent, transparent, and ethically compliant analysis
 
 ## Data
 
-The dataset used in this study is not publicly available due to patient privacy protection and institutional regulations. The repository includes a dummy input file (`data/dummy_input_30days.csv`) that mimics the required structure without exposing any individual-level data.
+The dataset used in this study is not publicly available due to patient privacy protection and institutional regulations. 
 
 ---
 

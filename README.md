@@ -34,11 +34,6 @@ AMI-mortality-risk-stratification-AI/
 ├── clustering/                        # Unsupervised subtyping
 │   └── 5_clustering_kproto.R
 │
-├── results/                           # Example visual outputs
-│   ├── example_nomogram_30d.png
-│   ├── example_nomogram_1y.png
-│   └── example_heatmap_clusters.png
-│
 ├── README.md
 └── LICENSE
 ```

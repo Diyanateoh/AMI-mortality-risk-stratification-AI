@@ -1,14 +1,16 @@
 # AMI-mortality-risk-stratification-AI
-Code and documentation for AMI mortality risk stratification via nomogram and clustering.
-## 📌 Objectives
 
-* To develop an interpretable, reproducible pipeline for multi-timepoint mortality risk stratification following acute myocardial infarction (AMI)
-* To apply supervised regression-based modeling (logistic for 30-day; Cox for 1-year) for clinically meaningful prediction
-* To identify subgroups of AMI patients through unsupervised clustering based on nomogram-derived risk profiles
+This repository contains code and documentation for multi-timepoint mortality risk stratification in patients with acute myocardial infarction (AMI), developed using supervised regression and unsupervised clustering approaches.
+
+## Objectives
+
+* To construct an interpretable, modular pipeline for stratifying AMI mortality risk at distinct time points (30-day, 1-year, 5-year)
+* To apply supervised modeling strategies (logistic regression for short-term; Cox regression for long-term) to support clinical decision-making
+* To identify risk-based patient subtypes using unsupervised clustering derived from regression-based profiles
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 AMI-mortality-risk-stratification-AI/
@@ -23,7 +25,7 @@ AMI-mortality-risk-stratification-AI/
 │   │   ├── 3_model_logistic_nomogram.R
 │   │   └── 4_evaluation_logistic.R
 │   │
-│   └── long_term/                      # 1-year mortality (Cox regression)
+│   └── long_term/                      # 1-year and 5-year mortality (Cox regression)
 │       ├── 1_data_preparation_long.R
 │       ├── 2_ROSE_balancing_long.R
 │       ├── 3_model_cox_nomogram.R
@@ -43,14 +45,14 @@ AMI-mortality-risk-stratification-AI/
 
 ---
 
-## 🔧 Dependencies
+## Software Requirements
 
-This project uses **R (>= 4.2.0)** and the following packages:
+This project requires **R (>= 4.2.0)** and the following CRAN packages:
 
 * `haven`, `ROSE`, `rms`, `caret`, `pROC`, `survival`, `Hmisc`
 * `clustMixType`, `cluster`, `dplyr`, `ggplot2`, `factoextra`
 
-To install all required packages:
+To install dependencies:
 
 ```r
 install.packages(c("haven", "ROSE", "rms", "caret", "pROC", "survival", "Hmisc", 
@@ -59,9 +61,9 @@ install.packages(c("haven", "ROSE", "rms", "caret", "pROC", "survival", "Hmisc",
 
 ---
 
-## 📊 Input Format
+## Input Format
 
-The pipeline expects a `.csv` file with the following structure:
+The pipeline requires a `.csv` file with the following structure:
 
 ```csv
 Sex,Age_C,Time,Residential_area,HTN,DM,DYS,OB_C_bmi,STEMI,Bloodvessel_C,FU_30days,event_status_30
@@ -69,51 +71,37 @@ Sex,Age_C,Time,Residential_area,HTN,DM,DYS,OB_C_bmi,STEMI,Bloodvessel_C,FU_30day
 ...
 ```
 
-> 📁 `data/dummy_input_30days.csv` is provided as a template with column names only.
+A dummy template (`data/dummy_input_30days.csv`) is included to illustrate the required input schema. This file contains column names only, with no patient data.
 
 ---
 
-## 🧪 Pipeline Summary
+## Methodological Overview
 
-* **Short-term (30-day)**: Logistic regression + nomogram (internal validation, AUC)
-* **Long-term (1-year)**: Cox regression + nomogram (C-index, calibration, ROC)
-* **Clustering**: Unsupervised k-prototypes analysis based on selected features
-
----
-
-## 🔁 Reproducibility
-
-This repository follows best practices promoted by international reproducibility initiatives (e.g., **FAIR**, **TOP Guidelines**, **NIH Rigor and Reproducibility Framework**):
-
-* All random operations use fixed seeds (`set.seed(123)`)
-* Modular, stepwise code with filenames reflecting their function and execution order
-* Transparent preprocessing, balancing, model training, validation, and evaluation steps
-* Separation of internal (CV, C-index) and external (ROC, AUC, optimal threshold) validation
-* Dummy input template provided to emulate workflow structure without compromising privacy
-* No proprietary or institution-specific functions are used
-* Code is compatible with open-source R ecosystem and can be executed on any academic machine
-
-These practices ensure reproducibility, transparency, and extensibility for peer reviewers, collaborators, and the broader research community.
+* **Short-term model**: Logistic regression with ROSE balancing and nomogram visualization for 30-day mortality
+* **Long-term model**: Cox proportional hazards regression applied to 1-year and 5-year survival estimation, sharing a unified pipeline
+* **Unsupervised clustering**: k-prototypes clustering on variables selected via AIC to reveal patient subgroups
 
 ---
 
-## 📄 Citation
+## Reproducibility Practices
 
-If you use this repository or adapt its code, please cite the corresponding manuscript:
+This repository applies key reproducibility principles:
 
-> Hsieh TC, et al. Two-stage machine learning for mortality risk stratification in acute myocardial infarction via complementary nomogram and clustering. *Submitted, 2025.*
+* Fixed random seeds (`set.seed(123)`)
+* Stepwise and annotated scripts
+* Open-source R packages only
+* Dummy input schema provided for structural reference
+
+These measures support consistent, transparent, and ethically compliant analysis workflows.
 
 ---
 
-## 📜 License
+## Data
 
-This project is released under the MIT License. See [LICENSE](./LICENSE) for details.
+The dataset used in this study is not publicly available due to patient privacy protection and institutional regulations. The repository includes a dummy input file (`data/dummy_input_30days.csv`) that mimics the required structure without exposing any individual-level data.
 
 ---
 
-## 🙋 Contact
+## License
 
-For questions about the code or requests for collaboration:
-
-📧 [tchsieh@gms.tcu.edu.tw](mailto:tchsieh@gms.tcu.edu.tw)
-👤 Corresponding Author: Tsung-Cheng Hsieh
+This project is licensed under the MIT License. See `LICENSE` for terms.

@@ -1,12 +1,12 @@
-# AMI-mortality-risk-stratification-ML
+# AMI-mortality-risk-stratification-classical-ML
 
-This repository contains code and documentation for a two-stage mortality risk stratification approach in patients with acute myocardial infarction (AMI), integrating supervised regression and unsupervised clustering approaches.
+This repository provides the codebase and documentation for a classical machine learning framework designed for multi-timepoint mortality risk stratification in patients with acute myocardial infarction (AMI). The framework integrates supervised regression models (logistic regression for 30-day and Cox regression for 1-year and 5-year outcomes) with unsupervised clustering techniques to enhance interpretability, identify heterogeneous patient subgroups, and support precision clinical decision-making.
 
 ## Objectives
 
-* To construct an interpretable，machine learning-based for stratifying AMI mortality risk at distinct time points (30-day, 1-year, 5-year)
-* To apply supervised modeling strategies (logistic regression for short-term; Cox regression for long-term) to support clinical decision-making
-* To identify risk-based patient subtypes using unsupervised clustering derived from regression-based profiles
+* To develop interpretable, classical machine learning models for stratifying AMI mortality risk at distinct clinical time points (30-day, 1-year, and 5-year).
+* To apply supervised modeling strategies — logistic regression for short-term and Cox regression for long-term outcomes — to support risk-informed clinical decision-making.
+* To identify clinically meaningful, risk-based patient subtypes through unsupervised clustering derived from regression-based risk profiles.
 
 ---
 

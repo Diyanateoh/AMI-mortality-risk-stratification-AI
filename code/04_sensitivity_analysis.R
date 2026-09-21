@@ -1,4 +1,5 @@
 library(dplyr)
+library(MASS)
 library(pROC)
 library(riskRegression)
 library(ROSE)
@@ -6,26 +7,19 @@ library(survival)
 
 analysis_seed <- 123L
 d <- readRDS("derived/analysis_data.rds")
-m <- readRDS("derived/models.rds")
 
 rose_sample <- function(data, outcome, p, seed) {
   f <- reformulate(setdiff(names(data), outcome), response = outcome)
-  ROSE(f, data = data, N = 2L * nrow(data), p = p, seed = seed)$data
-}
-
-status_at_horizon <- function(time, event, horizon) {
-  ifelse(
-    event == 1 & time <= horizon,
-    1L,
-    ifelse(time >= horizon, 0L, NA_integer_)
-  )
+  ROSE(
+    f,
+    data = data,
+    N = 2L * nrow(data),
+    p = p,
+    seed = seed
+  )$data
 }
 
 classification_metrics <- function(outcome, risk) {
-  keep <- !is.na(outcome) & !is.na(risk)
-  outcome <- as.integer(outcome[keep])
-  risk <- as.numeric(risk[keep])
-
   roc_obj <- roc(outcome, risk, quiet = TRUE, direction = "<")
   auc_ci <- ci.auc(roc_obj)
 
@@ -60,18 +54,6 @@ classification_metrics <- function(outcome, risk) {
   )
 }
 
-fit_30d <- function(train) {
-  glm(m$formulas$final_30d, data = train, family = binomial())
-}
-
-fit_1y <- function(train) {
-  coxph(m$formulas$final_1y, data = train, x = TRUE, y = TRUE, model = TRUE)
-}
-
-fit_5y <- function(train) {
-  coxph(m$formulas$final_5y, data = train, x = TRUE, y = TRUE, model = TRUE)
-}
-
 candidate_30d <- c(
   "age", "sex", "residential_area", "treatment_within_12h", "onset_season",
   "hypertension", "diabetes", "dyslipidemia", "bmi", "stemi",
@@ -84,47 +66,126 @@ candidate_long <- c(
   "multivessel_disease"
 )
 
+full_30d <- reformulate(
+  candidate_30d,
+  response = "mortality_30d"
+)
+
+full_1y <- as.formula(
+  paste(
+    "Surv(followup_1y_days, event_1y) ~",
+    paste(candidate_long, collapse = " + ")
+  )
+)
+
+full_5y <- as.formula(
+  paste(
+    "Surv(followup_5y_days, event_5y) ~",
+    paste(candidate_long, collapse = " + ")
+  )
+)
+
+fit_30d <- function(train) {
+  stepAIC(
+    glm(full_30d, data = train, family = binomial()),
+    direction = "both",
+    trace = FALSE
+  )
+}
+
+fit_1y <- function(train) {
+  stepAIC(
+    coxph(full_1y, data = train, x = TRUE, y = TRUE, model = TRUE),
+    direction = "both",
+    trace = FALSE
+  )
+}
+
+fit_5y <- function(train) {
+  stepAIC(
+    coxph(full_5y, data = train, x = TRUE, y = TRUE, model = TRUE),
+    direction = "both",
+    trace = FALSE
+  )
+}
+
 train_30d <- d$train_30d[, c(candidate_30d, "mortality_30d")]
 train_1y <- d$train_long[, c(candidate_long, "followup_1y_days", "event_1y")]
 train_5y <- d$train_long[, c(candidate_long, "followup_5y_days", "event_5y")]
 
 training_sets_30d <- list(
   original = train_30d,
-  observed_event_rate = rose_sample(train_30d, "mortality_30d", 0.074, analysis_seed),
-  p_0_5 = rose_sample(train_30d, "mortality_30d", 0.5, analysis_seed)
+  observed_event_rate = rose_sample(
+    train_30d,
+    "mortality_30d",
+    0.074,
+    analysis_seed
+  ),
+  p_0_5 = rose_sample(
+    train_30d,
+    "mortality_30d",
+    0.5,
+    analysis_seed
+  )
 )
 
 training_sets_1y <- list(
   original = train_1y,
-  observed_event_rate = rose_sample(train_1y, "event_1y", 0.077, analysis_seed),
-  p_0_5 = rose_sample(train_1y, "event_1y", 0.5, analysis_seed)
+  observed_event_rate = rose_sample(
+    train_1y,
+    "event_1y",
+    0.077,
+    analysis_seed
+  ),
+  p_0_5 = rose_sample(
+    train_1y,
+    "event_1y",
+    0.5,
+    analysis_seed
+  )
 )
 
 training_sets_5y <- list(
   original = train_5y,
-  observed_event_rate = rose_sample(train_5y, "event_5y", 0.190, analysis_seed),
-  p_0_5 = rose_sample(train_5y, "event_5y", 0.5, analysis_seed)
+  observed_event_rate = rose_sample(
+    train_5y,
+    "event_5y",
+    0.190,
+    analysis_seed
+  ),
+  p_0_5 = rose_sample(
+    train_5y,
+    "event_5y",
+    0.5,
+    analysis_seed
+  )
 )
 
 models_30d <- lapply(training_sets_30d, fit_30d)
 models_1y <- lapply(training_sets_1y, fit_1y)
 models_5y <- lapply(training_sets_5y, fit_5y)
 
-outcome_1y <- status_at_horizon(
-  d$test_long$followup_1y_days,
-  d$test_long$event_1y,
-  365
+outcome_1y <- as.integer(
+  d$test_long$followup_1y_days <= 365 &
+    d$test_long$event_1y == 1
 )
 
-outcome_5y <- status_at_horizon(
-  d$test_long$followup_5y_days,
-  d$test_long$event_5y,
-  1825
+outcome_5y <- as.integer(
+  d$test_long$followup_5y_days <= 1825 &
+    d$test_long$event_5y == 1
 )
 
 evaluate_30d <- function(model, label) {
-  risk <- predict(model, newdata = d$test_30d, type = "response")
-  result <- classification_metrics(d$test_30d$mortality_30d, risk)
+  risk <- predict(
+    model,
+    newdata = d$test_30d,
+    type = "response"
+  )
+
+  result <- classification_metrics(
+    d$test_30d$mortality_30d,
+    risk
+  )
 
   list(
     row = data.frame(
@@ -133,12 +194,20 @@ evaluate_30d <- function(model, label) {
       result$summary,
       check.names = FALSE
     ),
-    roc = result$roc
+    roc = result$roc,
+    terms = attr(terms(model), "term.labels")
   )
 }
 
 evaluate_1y <- function(model, label) {
-  risk <- drop(predictRisk(model, newdata = d$test_long, times = 365))
+  risk <- drop(
+    predictRisk(
+      model,
+      newdata = d$test_long,
+      times = 365
+    )
+  )
+
   result <- classification_metrics(outcome_1y, risk)
 
   list(
@@ -148,12 +217,20 @@ evaluate_1y <- function(model, label) {
       result$summary,
       check.names = FALSE
     ),
-    roc = result$roc
+    roc = result$roc,
+    terms = attr(terms(model), "term.labels")
   )
 }
 
 evaluate_5y <- function(model, label) {
-  risk <- drop(predictRisk(model, newdata = d$test_long, times = 1825))
+  risk <- drop(
+    predictRisk(
+      model,
+      newdata = d$test_long,
+      times = 1825
+    )
+  )
+
   result <- classification_metrics(outcome_5y, risk)
 
   list(
@@ -163,7 +240,8 @@ evaluate_5y <- function(model, label) {
       result$summary,
       check.names = FALSE
     ),
-    roc = result$roc
+    roc = result$roc,
+    terms = attr(terms(model), "term.labels")
   )
 }
 
@@ -188,9 +266,41 @@ table_s2 <- all_results %>%
     )
   ) %>%
   select(
-    timepoint, sampling_p, AUC, AUC_lower, AUC_upper,
-    sensitivity, specificity, accuracy, threshold
+    timepoint, sampling_p,
+    AUC, AUC_lower, AUC_upper,
+    sensitivity, specificity, accuracy,
+    threshold
   )
+
+selected_features <- bind_rows(
+  data.frame(
+    timepoint = "30-day",
+    sampling = names(res_30d),
+    selected = vapply(
+      res_30d,
+      function(x) paste(x$terms, collapse = "; "),
+      character(1)
+    )
+  ),
+  data.frame(
+    timepoint = "1-year",
+    sampling = names(res_1y),
+    selected = vapply(
+      res_1y,
+      function(x) paste(x$terms, collapse = "; "),
+      character(1)
+    )
+  ),
+  data.frame(
+    timepoint = "5-year",
+    sampling = names(res_5y),
+    selected = vapply(
+      res_5y,
+      function(x) paste(x$terms, collapse = "; "),
+      character(1)
+    )
+  )
+)
 
 dir.create("outputs", showWarnings = FALSE)
 
@@ -203,6 +313,12 @@ write.csv(
 write.csv(
   table_s2,
   "outputs/sensitivity_table_s2.csv",
+  row.names = FALSE
+)
+
+write.csv(
+  selected_features,
+  "outputs/sensitivity_selected_features.csv",
   row.names = FALSE
 )
 

@@ -194,8 +194,7 @@ evaluate_30d <- function(model, label) {
       result$summary,
       check.names = FALSE
     ),
-    roc = result$roc,
-    terms = attr(terms(model), "term.labels")
+    roc = result$roc
   )
 }
 
@@ -217,8 +216,7 @@ evaluate_1y <- function(model, label) {
       result$summary,
       check.names = FALSE
     ),
-    roc = result$roc,
-    terms = attr(terms(model), "term.labels")
+    roc = result$roc
   )
 }
 
@@ -240,8 +238,7 @@ evaluate_5y <- function(model, label) {
       result$summary,
       check.names = FALSE
     ),
-    roc = result$roc,
-    terms = attr(terms(model), "term.labels")
+    roc = result$roc
   )
 }
 
@@ -272,53 +269,11 @@ table_s2 <- all_results %>%
     threshold
   )
 
-selected_features <- bind_rows(
-  data.frame(
-    timepoint = "30-day",
-    sampling = names(res_30d),
-    selected = vapply(
-      res_30d,
-      function(x) paste(x$terms, collapse = "; "),
-      character(1)
-    )
-  ),
-  data.frame(
-    timepoint = "1-year",
-    sampling = names(res_1y),
-    selected = vapply(
-      res_1y,
-      function(x) paste(x$terms, collapse = "; "),
-      character(1)
-    )
-  ),
-  data.frame(
-    timepoint = "5-year",
-    sampling = names(res_5y),
-    selected = vapply(
-      res_5y,
-      function(x) paste(x$terms, collapse = "; "),
-      character(1)
-    )
-  )
-)
-
 dir.create("outputs", showWarnings = FALSE)
-
-write.csv(
-  all_results,
-  "outputs/sensitivity_all_models.csv",
-  row.names = FALSE
-)
 
 write.csv(
   table_s2,
   "outputs/sensitivity_table_s2.csv",
-  row.names = FALSE
-)
-
-write.csv(
-  selected_features,
-  "outputs/sensitivity_selected_features.csv",
   row.names = FALSE
 )
 

@@ -112,17 +112,12 @@ glm_30d <- glm(final_30d, data = rose_30d, family = binomial())
 cox_1y <- coxph(final_1y, data = rose_1y, x = TRUE, y = TRUE, model = TRUE)
 cox_5y <- coxph(final_5y, data = rose_5y, x = TRUE, y = TRUE, model = TRUE)
 
-cv_auc <- function(
+cv_logistic_auc <- function(
     data, formula, event_var,
-    model = c("logistic", "cox"),
-    horizon = NULL, time_var = NULL,
     k = 5L, repeats = 20L, seed = 123L) {
 
-  model <- match.arg(model)
   set.seed(seed)
-
-  auc_values <- numeric(k * repeats)
-  z <- 1L
+  values <- numeric(0)
 
   for (r in seq_len(repeats)) {
     folds <- caret::createFolds(
@@ -136,75 +131,121 @@ cv_auc <- function(
       valid <- data[folds[[f]], , drop = FALSE]
 
       if (length(unique(valid[[event_var]])) < 2L) {
-        auc_values[z] <- NA_real_
-        z <- z + 1L
         next
       }
 
-      if (model == "logistic") {
-        fit <- glm(formula, data = train, family = binomial())
-        risk <- predict(fit, newdata = valid, type = "response")
-        outcome <- valid[[event_var]]
-      } else {
-        fit <- coxph(formula, data = train)
-        sf <- survfit(fit, newdata = valid)
-        risk <- 1 - as.vector(summary(sf, times = horizon)$surv)
-        outcome <- ifelse(
-          valid[[time_var]] <= horizon & valid[[event_var]] == 1,
-          1L,
-          0L
-        )
-      }
+      fit <- glm(formula, data = train, family = binomial())
+      risk <- predict(fit, newdata = valid, type = "response")
 
-      auc_values[z] <- as.numeric(
-        auc(roc(outcome, risk, quiet = TRUE, direction = "<"))
+      values <- c(
+        values,
+        as.numeric(
+          auc(
+            roc(
+              valid[[event_var]],
+              risk,
+              quiet = TRUE,
+              direction = "<"
+            )
+          )
+        )
       )
-      z <- z + 1L
     }
   }
 
-  auc_values <- auc_values[!is.na(auc_values)]
-  mean_auc <- mean(auc_values)
-  se_auc <- sd(auc_values) / sqrt(length(auc_values))
-
-  c(
-    mean_auc = mean_auc,
-    lower_95 = mean_auc - qnorm(0.975) * se_auc,
-    upper_95 = mean_auc + qnorm(0.975) * se_auc
-  )
+  mean(values, na.rm = TRUE)
 }
 
-cv_stability <- rbind(
-  "30-day" = cv_auc(
-    rose_30d,
-    final_30d,
-    event_var = "mortality_30d",
-    model = "logistic",
-    k = 5L,
-    repeats = 20L,
-    seed = analysis_seed
-  ),
-  "1-year" = cv_auc(
-    rose_1y,
-    final_1y,
-    event_var = "event_1y",
-    model = "cox",
-    horizon = 365,
-    time_var = "followup_1y_days",
-    k = 5L,
-    repeats = 20L,
-    seed = analysis_seed
-  ),
-  "5-year" = cv_auc(
-    rose_5y,
-    final_5y,
-    event_var = "event_5y",
-    model = "cox",
-    horizon = 1825,
-    time_var = "followup_5y_days",
-    k = 5L,
-    repeats = 20L,
-    seed = analysis_seed
+cv_cox_cindex <- function(
+    data, formula, time_var, event_var,
+    k = 5L, repeats = 20L, seed = 123L) {
+
+  set.seed(seed)
+  values <- numeric(0)
+
+  for (r in seq_len(repeats)) {
+    folds <- caret::createFolds(
+      data[[event_var]],
+      k = k,
+      list = TRUE
+    )
+
+    for (f in seq_len(k)) {
+      train <- data[-folds[[f]], , drop = FALSE]
+      valid <- data[folds[[f]], , drop = FALSE]
+
+      if (length(unique(valid[[event_var]])) < 2L) {
+        next
+      }
+
+      fit <- coxph(
+        formula,
+        data = train,
+        x = TRUE,
+        y = TRUE,
+        model = TRUE
+      )
+
+      valid$linear_predictor <- predict(
+        fit,
+        newdata = valid,
+        type = "lp"
+      )
+
+      c_formula <- as.formula(
+        paste0(
+          "Surv(",
+          time_var,
+          ", ",
+          event_var,
+          ") ~ linear_predictor"
+        )
+      )
+
+      values <- c(
+        values,
+        survival::concordance(
+          c_formula,
+          data = valid,
+          reverse = TRUE
+        )$concordance
+      )
+    }
+  }
+
+  mean(values, na.rm = TRUE)
+}
+
+cv_stability <- data.frame(
+  horizon = c("30-day", "1-year", "5-year"),
+  metric = c("AUC", "C-index", "C-index"),
+  value = c(
+    cv_logistic_auc(
+      rose_30d,
+      final_30d,
+      event_var = "mortality_30d",
+      k = 5L,
+      repeats = 20L,
+      seed = analysis_seed
+    ),
+    cv_cox_cindex(
+      rose_1y,
+      final_1y,
+      time_var = "followup_1y_days",
+      event_var = "event_1y",
+      k = 5L,
+      repeats = 20L,
+      seed = analysis_seed
+    ),
+    cv_cox_cindex(
+      rose_5y,
+      final_5y,
+      time_var = "followup_5y_days",
+      event_var = "event_5y",
+      k = 5L,
+      repeats = 20L,
+      seed = analysis_seed
+    )
   )
 )
 

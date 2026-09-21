@@ -21,7 +21,7 @@ Patient-level registry data are not publicly distributed because of institutiona
 - `data/ami_30d.csv`
 - `data/ami_longterm.csv`
 
-Standardised analysis variables are:
+Analysis variable names expected by the scripts are:
 
 `age`, `sex`, `residential_area`, `treatment_within_12h`, `onset_season`, `hypertension`, `diabetes`, `dyslipidemia`, `bmi`, `stemi`, `multivessel_disease`, `mortality_30d`, `followup_1y_days`, `event_1y`, `followup_5y_days`, and `event_5y`.
 

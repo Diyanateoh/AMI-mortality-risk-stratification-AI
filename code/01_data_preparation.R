@@ -31,8 +31,8 @@ encode_common <- function(x) {
       sex = factor(as.integer(sex), levels = c(1, 2), labels = c("Male", "Female")),
       residential_area = factor(
         as.integer(residential_area),
-        levels = c(0, 1),
-        labels = c("Rural", "Urban")
+        levels = c(1, 0),
+        labels = c("Urban", "Rural")
       ),
       treatment_within_12h = factor(
         as.integer(treatment_within_12h),

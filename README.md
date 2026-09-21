@@ -10,9 +10,9 @@ Run the scripts in numerical order from the repository root.
 
 - `code/01_data_preparation.R` — complete-case preparation and 70:30 training/held-out test partitioning
 - `code/02_model_development.R` — ROSE training data, AIC selection, repeated five-fold cross-validation (20 repeats), logistic/Cox models, and nomograms
-- `code/03_model_evaluation.R` — AUC, calibration, Brier score, classification metrics, and decision curve analysis
-- `code/04_sensitivity_analysis.R` — original training data versus ROSE sampling settings
-- `code/05_clustering.R` — k-prototypes clustering on the original, unresampled analytic cohorts
+- `code/03_model_evaluation.R` — held-out test-set evaluation reported in the manuscript
+- `code/04_sensitivity_analysis.R` — ROSE sensitivity analysis corresponding to Table S2 and Fig. S1
+- `code/05_clustering.R` — k-prototypes clustering corresponding to the reported cluster analyses
 
 ## Data
 

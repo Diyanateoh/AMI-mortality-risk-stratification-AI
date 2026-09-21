@@ -75,6 +75,9 @@ long <- long %>%
     event_5y = as.integer(event_5y)
   )
 
+stopifnot(nrow(short) == 1549L)
+stopifnot(nrow(long) == 443L)
+
 set.seed(analysis_seed)
 idx_30d <- sample.int(
   nrow(short),
@@ -95,6 +98,11 @@ analysis_data <- list(
   train_long = long[idx_long, , drop = FALSE],
   test_long = long[-idx_long, , drop = FALSE]
 )
+
+stopifnot(nrow(analysis_data$train_30d) == 1084L)
+stopifnot(nrow(analysis_data$test_30d) == 465L)
+stopifnot(nrow(analysis_data$train_long) == 310L)
+stopifnot(nrow(analysis_data$test_long) == 133L)
 
 dir.create("derived", showWarnings = FALSE)
 saveRDS(analysis_data, "derived/analysis_data.rds")

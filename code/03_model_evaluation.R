@@ -109,18 +109,11 @@ calibrate_binary <- function(outcome, risk, B = 1000L, seed = 123L) {
     }
   }
 
-  calibrated <- plogis(
-    predict(fit, newdata = data.frame(lp = lp), type = "lp")
-  )
-
-  list(
-    curve = data.frame(
-      predicted = grid,
-      observed = fitted,
-      lower = apply(boot, 1, quantile, probs = 0.025, na.rm = TRUE),
-      upper = apply(boot, 1, quantile, probs = 0.975, na.rm = TRUE)
-    ),
-    Eavg = mean(abs(calibrated - risk))
+  data.frame(
+    predicted = grid,
+    observed = fitted,
+    lower = apply(boot, 1, quantile, probs = 0.025, na.rm = TRUE),
+    upper = apply(boot, 1, quantile, probs = 0.975, na.rm = TRUE)
   )
 }
 
@@ -150,23 +143,11 @@ calibrate_survival <- function(time, event, risk, horizon) {
     conf.int = 0.95
   )
 
-  pred_subject <- survest(
-    fit,
-    newdata = data.frame(lp = lp),
-    times = horizon,
-    conf.int = FALSE
-  )
-
-  calibrated <- 1 - as.numeric(pred_subject$surv)
-
-  list(
-    curve = data.frame(
-      predicted = grid,
-      observed = 1 - as.numeric(pred_grid$surv),
-      lower = 1 - as.numeric(pred_grid$upper),
-      upper = 1 - as.numeric(pred_grid$lower)
-    ),
-    Eavg = mean(abs(calibrated - risk))
+  data.frame(
+    predicted = grid,
+    observed = 1 - as.numeric(pred_grid$surv),
+    lower = 1 - as.numeric(pred_grid$upper),
+    upper = 1 - as.numeric(pred_grid$lower)
   )
 }
 
@@ -349,8 +330,3 @@ print(brier_30d)
 print(brier_1y)
 print(brier_5y)
 
-c(
-  Eavg_30d = calibration_30d$Eavg,
-  Eavg_1y = calibration_1y$Eavg,
-  Eavg_5y = calibration_5y$Eavg
-)

@@ -35,7 +35,11 @@ fit_kproto <- function(x, seed = 123L) {
 
   for (i in seq_along(k_values)) {
     set.seed(seed)
-    elbow[i] <- kproto(x, k = k_values[i], verbose = FALSE)$tot.withinss
+    elbow[i] <- kproto(
+      x,
+      k = k_values[i],
+      verbose = FALSE
+    )$tot.withinss
   }
 
   set.seed(seed)
@@ -43,19 +47,53 @@ fit_kproto <- function(x, seed = 123L) {
 
   list(
     fit = fit,
-    elbow = data.frame(k = k_values, total_withinss = elbow)
+    elbow = data.frame(
+      k = k_values,
+      total_withinss = elbow
+    )
   )
 }
 
-profile_matrix <- function(data, variables, cluster, mortality) {
-  mm <- model.matrix(~ . - 1, data = data[, variables, drop = FALSE])
-  profile <- aggregate(mm, by = list(cluster = cluster), FUN = mean)
+cluster_profile <- function(data, variables, cluster, mortality) {
+  out <- data.frame(
+    cluster = levels(factor(cluster)),
+    n = as.integer(table(factor(cluster))),
+    mortality_rate = 100 * as.numeric(tapply(mortality, cluster, mean))
+  )
 
-  mat <- t(as.matrix(profile[, -1, drop = FALSE]))
+  for (v in variables) {
+    if (is.numeric(data[[v]])) {
+      out[[v]] <- as.numeric(tapply(data[[v]], cluster, mean))
+    } else {
+      for (level in levels(data[[v]])) {
+        name <- paste(v, level, sep = "__")
+        out[[name]] <- 100 * as.numeric(
+          tapply(data[[v]] == level, cluster, mean)
+        )
+      }
+    }
+  }
+
+  out
+}
+
+cluster_tests <- function(data, variables, cluster) {
+  p <- sapply(variables, function(v) {
+    if (is.numeric(data[[v]])) {
+      summary(aov(data[[v]] ~ factor(cluster)))[[1]][["Pr(>F)"]][1]
+    } else {
+      suppressWarnings(
+        chisq.test(table(data[[v]], cluster), correct = FALSE)$p.value
+      )
+    }
+  })
+
+  data.frame(variable = variables, p_value = as.numeric(p))
+}
+
+heatmap_matrix <- function(profile) {
+  mat <- t(as.matrix(profile[, setdiff(names(profile), c("cluster", "n")), drop = FALSE]))
   colnames(mat) <- paste0("Cluster ", profile$cluster)
-
-  mortality_rate <- as.numeric(tapply(mortality, cluster, mean))
-  mat <- rbind(mat, observed_mortality = mortality_rate)
 
   scaled <- t(scale(t(mat)))
   scaled[is.na(scaled)] <- 0
@@ -74,29 +112,48 @@ d$short$cluster_30d <- factor(cluster_30d$fit$cluster)
 d$long$cluster_1y <- factor(cluster_1y$fit$cluster)
 d$long$cluster_5y <- factor(cluster_5y$fit$cluster)
 
-summary_30d <- d$short %>%
-  group_by(cluster_30d) %>%
-  summarise(n = n(), mortality_rate = mean(mortality_30d) * 100, .groups = "drop")
-
-summary_1y <- d$long %>%
-  group_by(cluster_1y) %>%
-  summarise(n = n(), mortality_rate = mean(event_1y) * 100, .groups = "drop")
-
-summary_5y <- d$long %>%
-  group_by(cluster_5y) %>%
-  summarise(n = n(), mortality_rate = mean(event_5y) * 100, .groups = "drop")
-
-heat_30d <- profile_matrix(
-  d$short, vars_30d, d$short$cluster_30d, d$short$mortality_30d
+profile_30d <- cluster_profile(
+  d$short,
+  vars_30d,
+  d$short$cluster_30d,
+  d$short$mortality_30d
 )
 
-heat_1y <- profile_matrix(
-  d$long, vars_1y, d$long$cluster_1y, d$long$event_1y
+profile_1y <- cluster_profile(
+  d$long,
+  vars_1y,
+  d$long$cluster_1y,
+  d$long$event_1y
 )
 
-heat_5y <- profile_matrix(
-  d$long, vars_5y, d$long$cluster_5y, d$long$event_5y
+profile_5y <- cluster_profile(
+  d$long,
+  vars_5y,
+  d$long$cluster_5y,
+  d$long$event_5y
 )
+
+tests_30d <- cluster_tests(
+  d$short,
+  vars_30d,
+  d$short$cluster_30d
+)
+
+tests_1y <- cluster_tests(
+  d$long,
+  vars_1y,
+  d$long$cluster_1y
+)
+
+tests_5y <- cluster_tests(
+  d$long,
+  vars_5y,
+  d$long$cluster_5y
+)
+
+heat_30d <- heatmap_matrix(profile_30d)
+heat_1y <- heatmap_matrix(profile_1y)
+heat_5y <- heatmap_matrix(profile_5y)
 
 dir.create("outputs", showWarnings = FALSE)
 
@@ -104,16 +161,40 @@ write.csv(cluster_30d$elbow, "outputs/elbow_30d.csv", row.names = FALSE)
 write.csv(cluster_1y$elbow, "outputs/elbow_1y.csv", row.names = FALSE)
 write.csv(cluster_5y$elbow, "outputs/elbow_5y.csv", row.names = FALSE)
 
-write.csv(summary_30d, "outputs/cluster_summary_30d.csv", row.names = FALSE)
-write.csv(summary_1y, "outputs/cluster_summary_1y.csv", row.names = FALSE)
-write.csv(summary_5y, "outputs/cluster_summary_5y.csv", row.names = FALSE)
+write.csv(profile_30d, "outputs/cluster_profile_30d.csv", row.names = FALSE)
+write.csv(profile_1y, "outputs/cluster_profile_1y.csv", row.names = FALSE)
+write.csv(profile_5y, "outputs/cluster_profile_5y.csv", row.names = FALSE)
+
+write.csv(tests_30d, "outputs/cluster_tests_30d.csv", row.names = FALSE)
+write.csv(tests_1y, "outputs/cluster_tests_1y.csv", row.names = FALSE)
+write.csv(tests_5y, "outputs/cluster_tests_5y.csv", row.names = FALSE)
 
 palette <- colorRampPalette(c("green", "yellow", "red"))(100)
 
-pheatmap(heat_30d, cluster_rows = FALSE, cluster_cols = FALSE, color = palette)
-pheatmap(heat_1y, cluster_rows = FALSE, cluster_cols = FALSE, color = palette)
-pheatmap(heat_5y, cluster_rows = FALSE, cluster_cols = FALSE, color = palette)
+pdf("outputs/cluster_heatmaps_fig5.pdf", width = 7, height = 10)
+pheatmap(
+  heat_30d,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  color = palette,
+  main = "30-day"
+)
+pheatmap(
+  heat_1y,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  color = palette,
+  main = "1-year"
+)
+pheatmap(
+  heat_5y,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  color = palette,
+  main = "5-year"
+)
+dev.off()
 
-print(summary_30d)
-print(summary_1y)
-print(summary_5y)
+print(profile_30d)
+print(profile_1y)
+print(profile_5y)

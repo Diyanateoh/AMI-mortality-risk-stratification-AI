@@ -1,4 +1,5 @@
 library(MASS)
+library(pROC)
 library(riskRegression)
 library(ROSE)
 library(rms)
@@ -200,6 +201,48 @@ cv_5y <- repeated_cv(
   seed = analysis_seed
 )
 
+status_at_horizon <- function(time, event, horizon) {
+  ifelse(
+    event == 1 & time <= horizon,
+    1L,
+    ifelse(time >= horizon, 0L, NA_integer_)
+  )
+}
+
+fold_auc <- function(data, outcome) {
+  groups <- interaction(data$repeat, data$fold, drop = TRUE)
+
+  values <- vapply(
+    split(data, groups),
+    function(x) {
+      keep <- !is.na(x[[outcome]]) & !is.na(x$risk)
+      y <- x[[outcome]][keep]
+      r <- x$risk[keep]
+
+      if (length(unique(y)) < 2L) {
+        return(NA_real_)
+      }
+
+      as.numeric(auc(roc(y, r, quiet = TRUE, direction = "<")))
+    },
+    numeric(1)
+  )
+
+  c(
+    mean_auc = mean(values, na.rm = TRUE),
+    sd_auc = sd(values, na.rm = TRUE)
+  )
+}
+
+cv_1y$outcome <- status_at_horizon(cv_1y$time, cv_1y$event, 365)
+cv_5y$outcome <- status_at_horizon(cv_5y$time, cv_5y$event, 1825)
+
+cv_stability <- rbind(
+  "30-day" = fold_auc(cv_30d, "outcome"),
+  "1-year" = fold_auc(cv_1y, "outcome"),
+  "5-year" = fold_auc(cv_5y, "outcome")
+)
+
 dd_30d <- datadist(rose_30d)
 options(datadist = "dd_30d")
 lrm_30d <- lrm(final_30d, data = rose_30d, x = TRUE, y = TRUE)
@@ -253,7 +296,8 @@ models <- list(
   cross_validation = list(
     predictions_30d = cv_30d,
     predictions_1y = cv_1y,
-    predictions_5y = cv_5y
+    predictions_5y = cv_5y,
+    stability = cv_stability
   ),
   nomogram = list(
     model_30d = lrm_30d,
@@ -271,3 +315,4 @@ models <- list(
 )
 
 saveRDS(models, "derived/models.rds")
+print(cv_stability)

@@ -6,6 +6,8 @@ The repository covers data preparation, AIC-based logistic and Cox regression mo
 
 ## Code
 
+Run the scripts in numerical order from the repository root.
+
 - `code/01_data_preparation.R` — complete-case preparation and 70:30 training/held-out test partitioning
 - `code/02_model_development.R` — ROSE training data, AIC selection, repeated five-fold cross-validation (20 repeats), logistic/Cox models, and nomograms
 - `code/03_model_evaluation.R` — AUC, calibration, Brier score, classification metrics, and decision curve analysis

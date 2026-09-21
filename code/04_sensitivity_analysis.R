@@ -127,7 +127,12 @@ evaluate_30d <- function(model, label) {
   result <- classification_metrics(d$test_30d$mortality_30d, risk)
 
   list(
-    row = cbind(timepoint = "30-day", sampling = label, result$summary),
+    row = data.frame(
+      timepoint = "30-day",
+      sampling = label,
+      result$summary,
+      check.names = FALSE
+    ),
     roc = result$roc
   )
 }
@@ -137,7 +142,12 @@ evaluate_1y <- function(model, label) {
   result <- classification_metrics(outcome_1y, risk)
 
   list(
-    row = cbind(timepoint = "1-year", sampling = label, result$summary),
+    row = data.frame(
+      timepoint = "1-year",
+      sampling = label,
+      result$summary,
+      check.names = FALSE
+    ),
     roc = result$roc
   )
 }
@@ -147,7 +157,12 @@ evaluate_5y <- function(model, label) {
   result <- classification_metrics(outcome_5y, risk)
 
   list(
-    row = cbind(timepoint = "5-year", sampling = label, result$summary),
+    row = data.frame(
+      timepoint = "5-year",
+      sampling = label,
+      result$summary,
+      check.names = FALSE
+    ),
     roc = result$roc
   )
 }
@@ -186,36 +201,75 @@ plot(
   res_30d$original$roc,
   legacy.axes = TRUE,
   main = "30-day",
+  col = "red",
   lwd = 2
 )
 plot(
   res_30d$observed_event_rate$roc,
   add = TRUE,
+  col = "blue",
   lwd = 2
+)
+legend(
+  "bottomright",
+  legend = c(
+    sprintf("Original AUC = %.3f", res_30d$original$row$AUC),
+    sprintf("ROSE AUC = %.3f", res_30d$observed_event_rate$row$AUC)
+  ),
+  col = c("red", "blue"),
+  lwd = 2,
+  bty = "n",
+  cex = 0.8
 )
 
 plot(
   res_1y$original$roc,
   legacy.axes = TRUE,
   main = "1-year",
+  col = "red",
   lwd = 2
 )
 plot(
   res_1y$observed_event_rate$roc,
   add = TRUE,
+  col = "blue",
   lwd = 2
+)
+legend(
+  "bottomright",
+  legend = c(
+    sprintf("Original AUC = %.3f", res_1y$original$row$AUC),
+    sprintf("ROSE AUC = %.3f", res_1y$observed_event_rate$row$AUC)
+  ),
+  col = c("red", "blue"),
+  lwd = 2,
+  bty = "n",
+  cex = 0.8
 )
 
 plot(
   res_5y$original$roc,
   legacy.axes = TRUE,
   main = "5-year",
+  col = "red",
   lwd = 2
 )
 plot(
   res_5y$observed_event_rate$roc,
   add = TRUE,
+  col = "blue",
   lwd = 2
+)
+legend(
+  "bottomright",
+  legend = c(
+    sprintf("Original AUC = %.3f", res_5y$original$row$AUC),
+    sprintf("ROSE AUC = %.3f", res_5y$observed_event_rate$row$AUC)
+  ),
+  col = c("red", "blue"),
+  lwd = 2,
+  bty = "n",
+  cex = 0.8
 )
 
 dev.off()

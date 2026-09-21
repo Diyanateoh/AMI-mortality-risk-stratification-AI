@@ -1,126 +1,30 @@
-# AMI-mortality-risk-stratification-classical-ML
+# Interpretable Decision Tools for Multi-Timepoint Mortality Risk Stratification After Acute Myocardial Infarction
 
-This repository provides the codebase and documentation for a classical machine learning framework designed for multi-timepoint mortality risk stratification in patients with acute myocardial infarction (AMI). The framework integrates supervised regression models (logistic regression for 30-day and Cox regression for 1-year and 5-year outcomes) with unsupervised clustering techniques to enhance interpretability, identify heterogeneous patient subgroups, and support precision clinical decision-making.
+R code corresponding to the analyses reported in the manuscript *Interpretable Decision Tools for Multi-Timepoint Mortality Risk Stratification After Acute Myocardial Infarction Using Routinely Collected Admission Data*.
 
-## Objectives
+The repository covers data preparation, AIC-based logistic and Cox regression models, nomogram construction, held-out test-set evaluation, ROSE sensitivity analyses, and k-prototypes clustering.
 
-* To develop interpretable, classical machine learning models for stratifying AMI mortality risk at distinct clinical time points (30-day, 1-year, and 5-year).
-* To apply supervised modeling strategies — logistic regression for short-term and Cox regression for long-term outcomes — to support risk-informed clinical decision-making.
-* To identify clinically meaningful, risk-based patient subtypes through unsupervised clustering derived from regression-based risk profiles.
+## Code
 
----
-
-## Project Structure
-
-```
-AMI-mortality-risk-stratification-AI/
-│
-├── code/
-│   ├── nomogram/                           # Supervised prediction
-│   │   ├── short_term/                     # 30-day mortality (logistic regression)
-│   │   │   ├── 1_data_preparation_short.R
-│   │   │   ├── 2_ROSE_balancing_short.R
-│   │   │   ├── 3_model_logistic_nomogram.R
-│   │   │   └── 4_evaluation_logistic.R
-│   │   └── long_term/                      # 1-year and 5-year mortality (Cox regression)
-│   │       ├── 1_data_preparation_long.R
-│   │       ├── 2_ROSE_balancing_long.R
-│   │       ├── 3_model_cox_nomogram.R
-│   │       └── 4_evaluation_cox.R
-│   └── cluster/                            # Unsupervised subtyping
-│       └── 5_clustering_kproto.R
-│
-├── README.md
-```
-
-## Input Format
-
-The pipeline requires a `.csv` file with the following columns:
-
-```csv
-Sex,Age_C,Time,Residential_area,HTN,DM,DYS,OB_C_bmi,STEMI,Bloodvessel_C,FU_30days,event_status_30
-```
-
-Each row corresponds to a single patient record. Below is a sample row illustrating the expected format:
-
-```csv
-1,67,1,0,1,1,0,23.4,1,1,30,0
-```
-
-### Column Definitions:
-
-| Column             | Description                                            |
-| ------------------ | ------------------------------------------------------ |
-| `Sex`              | 1 = Male, 2 = Female                                   |
-| `Age_C`            | Age in years (continuous)                              |
-| `Time`             | 0 = ≥12 hours, 1 = <12 hours from symptom to admission |
-| `Residential_area` | 0 = Rural, 1 = Urban                                   |
-| `HTN`              | 0 = No hypertension, 1 = Yes                           |
-| `DM`               | 0 = No diabetes, 1 = Yes                               |
-| `DYS`              | 0 = No dyslipidemia, 1 = Yes                           |
-| `OB_C_bmi`         | Body Mass Index (BMI, numeric)                         |
-| `STEMI`            | 0 = NSTEMI, 1 = STEMI                                  |
-| `Bloodvessel_C`    | 0 = Single/none, 1 = Multi-vessel disease              |
-| `FU_30days`        | Follow-up time in days (e.g., 30)                      |
-| `event_status_30`  | 0 = Alive, 1 = Deceased within 30 days                 |
-
-## Software Requirements
-
-This project requires **R (>= 4.2.0)** and the following CRAN packages:
-
-* `haven`, `ROSE`, `rms`, `caret`, `pROC`, `survival`, `Hmisc`
-* `clustMixType`, `cluster`, `dplyr`, `ggplot2`, `factoextra`
-
-To install dependencies:
-
-```r
-install.packages(c("haven", "ROSE", "rms", "caret", "pROC", "survival", "Hmisc", 
-                   "clustMixType", "cluster", "dplyr", "ggplot2", "factoextra"))
-```
-
----
-
-## Input Format
-
-The pipeline requires a `.csv` file with the following columns:
-
-```csv
-Sex,Age_C,Time,Residential_area,HTN,DM,DYS,OB_C_bmi,STEMI,Bloodvessel_C,FU_30days,event_status_30
-```
-
-Each row corresponds to a single patient record. Below is a sample row illustrating the expected format:
-
-```csv
-1,67,1,0,1,1,0,23.4,1,1,30,0
-```
-
-### Column Definitions:
-
-| Column             | Description                                            |
-| ------------------ | ------------------------------------------------------ |
-| `Sex`              | 1 = Male, 2 = Female                                   |
-| `Age_C`            | Age in years (continuous)                              |
-| `Time`             | 0 = ≥12 hours, 1 = <12 hours from symptom to admission |
-| `Residential_area` | 0 = Rural, 1 = Urban                                   |
-| `HTN`              | 0 = No hypertension, 1 = Yes                           |
-| `DM`               | 0 = No diabetes, 1 = Yes                               |
-| `DYS`              | 0 = No dyslipidemia, 1 = Yes                           |
-| `OB_C_bmi`         | Body Mass Index (BMI, numeric)                         |
-| `STEMI`            | 0 = NSTEMI, 1 = STEMI                                  |
-| `Bloodvessel_C`    | 0 = Single/none, 1 = Multi-vessel disease              |
-| `FU_30days`        | Follow-up time in days (e.g., 30)                      |
-| `event_status_30`  | 0 = Alive, 1 = Deceased within 30 days                 |
-
-## Methodological Overview
-
-* **Short-term model**: Logistic regression with ROSE balancing and nomogram visualization for 30-day mortality
-* **Long-term model**: Cox proportional hazards regression applied to 1-year and 5-year survival estimation
-* **Unsupervised clustering**: k-prototypes clustering on variables selected via AIC to reveal patient subgroups
-
----
+- `code/01_data_preparation.R` — complete-case preparation and 70:30 training/held-out test partitioning
+- `code/02_model_development.R` — ROSE training data, AIC selection, logistic/Cox models, and nomograms
+- `code/03_model_evaluation.R` — discrimination, calibration, Brier score, classification metrics, and decision curve analysis
+- `code/04_sensitivity_analysis.R` — original training data versus ROSE sampling settings
+- `code/05_clustering.R` — k-prototypes clustering on the original, unresampled analytic cohorts
 
 ## Data
 
-The dataset used in this study is not publicly available due to patient privacy protection and institutional regulations. 
+Patient-level registry data are not publicly distributed because of institutional and patient-confidentiality restrictions. The scripts expect authorised local copies at:
 
----
+- `data/ami_30d.csv`
+- `data/ami_longterm.csv`
+
+Standardised analysis variables are:
+
+`age`, `sex`, `residential_area`, `treatment_within_12h`, `onset_season`, `hypertension`, `diabetes`, `dyslipidemia`, `bmi`, `stemi`, `multivessel_disease`, `mortality_30d`, `followup_1y_days`, `event_1y`, `followup_5y_days`, and `event_5y`.
+
+Coding follows the manuscript and supplementary information: sex (1 male, 2 female); residential area (0 rural, 1 urban); treatment within 12 hours (0 ≥12 hours, 1 <12 hours); onset season (1 spring, 2 summer, 3 autumn, 4 winter); hypertension, diabetes, dyslipidemia, STEMI, and multivessel disease (0 no/reference, 1 yes/exposed as defined in the manuscript).
+
+## Software
+
+Analyses were conducted in R 4.4.2. Required packages are loaded explicitly in the analysis scripts.

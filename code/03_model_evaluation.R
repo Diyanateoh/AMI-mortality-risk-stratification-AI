@@ -18,6 +18,8 @@ class_metrics <- function(outcome, risk) {
   risk <- as.numeric(risk[keep])
 
   roc_obj <- roc(outcome, risk, quiet = TRUE, direction = "<")
+  auc_ci <- ci.auc(roc_obj)
+
   threshold <- as.numeric(
     coords(
       roc_obj,
@@ -37,6 +39,8 @@ class_metrics <- function(outcome, risk) {
 
   list(
     roc = roc_obj,
+    auc = as.numeric(auc(roc_obj)),
+    auc_ci = as.numeric(auc_ci[c(1, 3)]),
     threshold = threshold,
     confusion = matrix(
       c(tn, fn, fp, tp),
@@ -68,27 +72,50 @@ calibrate_binary <- function(outcome, risk, B = 1000L, seed = 123L) {
 
   fit <- lrm(outcome ~ rcs(lp, 3), data = x, x = TRUE, y = TRUE)
 
-  grid <- seq(max(0.001, min(risk)), min(0.999, max(risk)), length.out = 100)
-  grid_lp <- qlogis(grid)
-  fitted <- plogis(predict(fit, newdata = data.frame(lp = grid_lp), type = "lp"))
+  grid <- seq(
+    max(0.001, min(risk)),
+    min(0.999, max(risk)),
+    length.out = 100
+  )
+
+  fitted <- plogis(
+    predict(
+      fit,
+      newdata = data.frame(lp = qlogis(grid)),
+      type = "lp"
+    )
+  )
 
   set.seed(seed)
   boot <- matrix(NA_real_, nrow = length(grid), ncol = B)
 
   for (b in seq_len(B)) {
     idx <- sample.int(nrow(x), replace = TRUE)
+
     fit_b <- try(
-      lrm(outcome ~ rcs(lp, 3), data = x[idx, , drop = FALSE], x = TRUE, y = TRUE),
+      lrm(
+        outcome ~ rcs(lp, 3),
+        data = x[idx, , drop = FALSE],
+        x = TRUE,
+        y = TRUE
+      ),
       silent = TRUE
     )
+
     if (!inherits(fit_b, "try-error")) {
       boot[, b] <- plogis(
-        predict(fit_b, newdata = data.frame(lp = grid_lp), type = "lp")
+        predict(
+          fit_b,
+          newdata = data.frame(lp = qlogis(grid)),
+          type = "lp"
+        )
       )
     }
   }
 
-  calibrated <- plogis(predict(fit, newdata = data.frame(lp = lp), type = "lp"))
+  calibrated <- plogis(
+    predict(fit, newdata = data.frame(lp = lp), type = "lp")
+  )
 
   list(
     curve = data.frame(
@@ -114,7 +141,12 @@ calibrate_survival <- function(time, event, risk, horizon) {
     surv = TRUE
   )
 
-  grid <- seq(max(0.001, min(risk)), min(0.999, max(risk)), length.out = 100)
+  grid <- seq(
+    max(0.001, min(risk)),
+    min(0.999, max(risk)),
+    length.out = 100
+  )
+
   pred_grid <- survest(
     fit,
     newdata = data.frame(lp = qlogis(grid)),
@@ -142,47 +174,85 @@ calibrate_survival <- function(time, event, risk, horizon) {
   )
 }
 
-risk_30d <- predict(m$evaluation$model_30d, newdata = d$test_30d, type = "response")
-risk_1y <- drop(predictRisk(m$evaluation$model_1y, newdata = d$test_long, times = 365))
-risk_5y <- drop(predictRisk(m$evaluation$model_5y, newdata = d$test_long, times = 1825))
+risk_30d <- predict(
+  m$evaluation$model_30d,
+  newdata = d$test_30d,
+  type = "response"
+)
 
-score_30d <- Score(
+risk_1y <- drop(
+  predictRisk(
+    m$evaluation$model_1y,
+    newdata = d$test_long,
+    times = 365
+  )
+)
+
+risk_5y <- drop(
+  predictRisk(
+    m$evaluation$model_5y,
+    newdata = d$test_long,
+    times = 1825
+  )
+)
+
+outcome_1y <- status_at_horizon(
+  d$test_long$followup_1y_days,
+  d$test_long$event_1y,
+  365
+)
+
+outcome_5y <- status_at_horizon(
+  d$test_long$followup_5y_days,
+  d$test_long$event_5y,
+  1825
+)
+
+classification_30d <- class_metrics(
+  d$test_30d$mortality_30d,
+  risk_30d
+)
+
+classification_1y <- class_metrics(
+  outcome_1y,
+  risk_1y
+)
+
+classification_5y <- class_metrics(
+  outcome_5y,
+  risk_5y
+)
+
+brier_30d <- Score(
   list(Model = m$evaluation$model_30d),
   formula = mortality_30d ~ 1,
   data = d$test_30d,
-  metrics = c("auc", "brier"),
+  metrics = "brier",
   conf.int = 0.95,
   null.model = FALSE
 )
 
-score_1y <- Score(
+brier_1y <- Score(
   list(Model = m$evaluation$model_1y),
   formula = Surv(followup_1y_days, event_1y) ~ 1,
   data = d$test_long,
   times = 365,
-  metrics = c("auc", "brier"),
+  metrics = "brier",
   conf.int = 0.95,
   null.model = FALSE,
   cens.method = "ipcw"
 )
 
-score_5y <- Score(
+brier_5y <- Score(
   list(Model = m$evaluation$model_5y),
   formula = Surv(followup_5y_days, event_5y) ~ 1,
   data = d$test_long,
   times = 1825,
-  metrics = c("auc", "brier"),
+  metrics = "brier",
   conf.int = 0.95,
   null.model = FALSE,
   cens.method = "ipcw"
 )
-
-outcome_1y <- status_at_horizon(d$test_long$followup_1y_days, d$test_long$event_1y, 365)
-outcome_5y <- status_at_horizon(d$test_long$followup_5y_days, d$test_long$event_5y, 1825)
-
-classification_30d <- class_metrics(d$test_30d$mortality_30d, risk_30d)
-classification_1y <- class_metrics(outcome_1y, risk_1y)
-classification_5y <- class_metrics(outcome_5y, risk_5y)
 
 calibration_30d <- calibrate_binary(
   d$test_30d$mortality_30d,
@@ -233,8 +303,21 @@ dca_5y <- dca(
 )
 
 evaluation <- list(
-  risk = list(risk_30d = risk_30d, risk_1y = risk_1y, risk_5y = risk_5y),
-  score = list(score_30d = score_30d, score_1y = score_1y, score_5y = score_5y),
+  risk = list(
+    risk_30d = risk_30d,
+    risk_1y = risk_1y,
+    risk_5y = risk_5y
+  ),
+  discrimination = list(
+    result_30d = classification_30d[c("roc", "auc", "auc_ci")],
+    result_1y = classification_1y[c("roc", "auc", "auc_ci")],
+    result_5y = classification_5y[c("roc", "auc", "auc_ci")]
+  ),
+  brier = list(
+    result_30d = brier_30d,
+    result_1y = brier_1y,
+    result_5y = brier_5y
+  ),
   classification = list(
     result_30d = classification_30d,
     result_1y = classification_1y,
@@ -245,18 +328,30 @@ evaluation <- list(
     result_1y = calibration_1y,
     result_5y = calibration_5y
   ),
-  dca = list(result_30d = dca_30d, result_1y = dca_1y, result_5y = dca_5y)
+  dca = list(
+    result_30d = dca_30d,
+    result_1y = dca_1y,
+    result_5y = dca_5y
+  )
 )
 
 saveRDS(evaluation, "derived/evaluation.rds")
 
-print(score_30d)
-print(score_1y)
-print(score_5y)
+print(classification_30d[c(
+  "auc", "auc_ci", "threshold", "sensitivity", "specificity", "accuracy"
+)])
 
-print(classification_30d[c("threshold", "sensitivity", "specificity", "accuracy")])
-print(classification_1y[c("threshold", "sensitivity", "specificity", "accuracy")])
-print(classification_5y[c("threshold", "sensitivity", "specificity", "accuracy")])
+print(classification_1y[c(
+  "auc", "auc_ci", "threshold", "sensitivity", "specificity", "accuracy"
+)])
+
+print(classification_5y[c(
+  "auc", "auc_ci", "threshold", "sensitivity", "specificity", "accuracy"
+)])
+
+print(brier_30d)
+print(brier_1y)
+print(brier_5y)
 
 c(
   Eavg_30d = calibration_30d$Eavg,

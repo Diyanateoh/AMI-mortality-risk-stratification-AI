@@ -76,9 +76,16 @@ long <- long %>%
   )
 
 set.seed(analysis_seed)
+idx_30d <- sample.int(
+  nrow(short),
+  size = floor(0.70 * nrow(short))
+)
 
-idx_30d <- sample.int(nrow(short), size = floor(0.70 * nrow(short)))
-idx_long <- sample.int(nrow(long), size = floor(0.70 * nrow(long)))
+set.seed(analysis_seed)
+idx_long <- sample.int(
+  nrow(long),
+  size = floor(0.70 * nrow(long))
+)
 
 analysis_data <- list(
   short = short,

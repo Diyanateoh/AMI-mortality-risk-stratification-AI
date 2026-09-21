@@ -178,7 +178,19 @@ all_results <- bind_rows(
 )
 
 table_s2 <- all_results %>%
-  filter(sampling %in% c("observed_event_rate", "p_0_5"))
+  filter(sampling %in% c("observed_event_rate", "p_0_5")) %>%
+  mutate(
+    sampling_p = case_when(
+      sampling == "p_0_5" ~ 0.5,
+      timepoint == "30-day" ~ 0.074,
+      timepoint == "1-year" ~ 0.077,
+      timepoint == "5-year" ~ 0.190
+    )
+  ) %>%
+  select(
+    timepoint, sampling_p, AUC, AUC_lower, AUC_upper,
+    sensitivity, specificity, accuracy, threshold
+  )
 
 dir.create("outputs", showWarnings = FALSE)
 

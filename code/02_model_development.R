@@ -1,7 +1,6 @@
 library(caret)
 library(MASS)
 library(pROC)
-library(riskRegression)
 library(ROSE)
 library(rms)
 library(survival)

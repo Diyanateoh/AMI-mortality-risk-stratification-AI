@@ -38,12 +38,20 @@ fit_kproto <- function(x, selected_k = 3L, seed = 123L) {
     elbow[i] <- kproto(
       x,
       k = k_values[i],
+      iter.max = 100,
+      nstart = 10,
       verbose = FALSE
     )$tot.withinss
   }
 
   set.seed(seed)
-  fit <- kproto(x, k = selected_k, verbose = FALSE)
+  fit <- kproto(
+    x,
+    k = selected_k,
+    iter.max = 100,
+    nstart = 10,
+    verbose = FALSE
+  )
 
   list(
     fit = fit,
@@ -185,6 +193,19 @@ dir.create("outputs", showWarnings = FALSE)
 write.csv(cluster_30d$elbow, "outputs/elbow_30d.csv", row.names = FALSE)
 write.csv(cluster_1y$elbow, "outputs/elbow_1y.csv", row.names = FALSE)
 write.csv(cluster_5y$elbow, "outputs/elbow_5y.csv", row.names = FALSE)
+
+pdf("outputs/elbow_kprototypes.pdf", width = 9, height = 3)
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+plot(cluster_30d$elbow$k, cluster_30d$elbow$total_withinss,
+     type = "b", pch = 19, xlab = "k", ylab = "Total within-cluster variation",
+     main = "30-day")
+plot(cluster_1y$elbow$k, cluster_1y$elbow$total_withinss,
+     type = "b", pch = 19, xlab = "k", ylab = "Total within-cluster variation",
+     main = "1-year")
+plot(cluster_5y$elbow$k, cluster_5y$elbow$total_withinss,
+     type = "b", pch = 19, xlab = "k", ylab = "Total within-cluster variation",
+     main = "5-year")
+dev.off()
 
 write.csv(profile_30d, "outputs/cluster_profile_30d.csv", row.names = FALSE)
 write.csv(profile_1y, "outputs/cluster_profile_1y.csv", row.names = FALSE)

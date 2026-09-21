@@ -8,7 +8,7 @@ The repository covers data preparation, AIC-based logistic and Cox regression mo
 
 - `code/01_data_preparation.R` — complete-case preparation and 70:30 training/held-out test partitioning
 - `code/02_model_development.R` — ROSE training data, AIC selection, repeated five-fold cross-validation (20 repeats), logistic/Cox models, and nomograms
-- `code/03_model_evaluation.R` — discrimination, calibration, Brier score, classification metrics, and decision curve analysis
+- `code/03_model_evaluation.R` — AUC, calibration, Brier score, classification metrics, and decision curve analysis
 - `code/04_sensitivity_analysis.R` — original training data versus ROSE sampling settings
 - `code/05_clustering.R` — k-prototypes clustering on the original, unresampled analytic cohorts
 
@@ -27,4 +27,4 @@ Coding follows the manuscript and supplementary information: sex (1 male, 2 fema
 
 ## Software
 
-Analyses were conducted in R 4.4.2. Required packages are loaded explicitly in the analysis scripts.
+R 4.4.2. Packages used in the analysis scripts: `MASS`, `ROSE`, `rms`, `survival`, `riskRegression`, `pROC`, `dcurves`, `clustMixType`, `dplyr`, `readr`, `tidyr`, and `pheatmap`.

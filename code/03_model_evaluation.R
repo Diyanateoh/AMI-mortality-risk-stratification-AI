@@ -20,6 +20,7 @@ class_metrics <- function(outcome, risk) {
   roc_obj <- roc(outcome, risk, quiet = TRUE, direction = "<")
   auc_ci <- ci.auc(roc_obj)
 
+  # Youden-based threshold used for descriptive classification summaries.
   threshold <- as.numeric(
     coords(
       roc_obj,

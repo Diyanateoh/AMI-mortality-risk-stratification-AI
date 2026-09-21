@@ -1,4 +1,5 @@
 library(MASS)
+library(riskRegression)
 library(ROSE)
 library(rms)
 library(survival)
@@ -51,7 +52,12 @@ full_30d <- glm(
 )
 
 full_1y <- coxph(
-  reformulate(candidate_long, response = "Surv(followup_1y_days, event_1y)"),
+  as.formula(
+    paste(
+      "Surv(followup_1y_days, event_1y) ~",
+      paste(candidate_long, collapse = " + ")
+    )
+  ),
   data = rose_1y,
   x = TRUE,
   y = TRUE,
@@ -59,7 +65,12 @@ full_1y <- coxph(
 )
 
 full_5y <- coxph(
-  reformulate(candidate_long, response = "Surv(followup_5y_days, event_5y)"),
+  as.formula(
+    paste(
+      "Surv(followup_5y_days, event_5y) ~",
+      paste(candidate_long, collapse = " + ")
+    )
+  ),
   data = rose_5y,
   x = TRUE,
   y = TRUE,
@@ -81,14 +92,113 @@ final_5y <- Surv(followup_5y_days, event_5y) ~ age +
 
 selected_terms <- function(model) sort(attr(terms(model), "term.labels"))
 
-stopifnot(identical(selected_terms(aic_30d), sort(attr(terms(final_30d), "term.labels"))))
-stopifnot(identical(selected_terms(aic_1y), sort(attr(terms(final_1y), "term.labels"))))
-stopifnot(identical(selected_terms(aic_5y), sort(attr(terms(final_5y), "term.labels"))))
+stopifnot(identical(
+  selected_terms(aic_30d),
+  sort(attr(terms(final_30d), "term.labels"))
+))
+
+stopifnot(identical(
+  selected_terms(aic_1y),
+  sort(attr(terms(final_1y), "term.labels"))
+))
+
+stopifnot(identical(
+  selected_terms(aic_5y),
+  sort(attr(terms(final_5y), "term.labels"))
+))
 
 glm_30d <- glm(final_30d, data = rose_30d, family = binomial())
-
 cox_1y <- coxph(final_1y, data = rose_1y, x = TRUE, y = TRUE, model = TRUE)
 cox_5y <- coxph(final_5y, data = rose_5y, x = TRUE, y = TRUE, model = TRUE)
+
+repeated_cv <- function(
+    data, formula, model = c("logistic", "cox"),
+    horizon = NULL, time_var = NULL, event_var = NULL,
+    k = 5L, repeats = 20L, seed = 123L) {
+
+  model <- match.arg(model)
+  set.seed(seed)
+  out <- vector("list", k * repeats)
+  z <- 1L
+
+  for (r in seq_len(repeats)) {
+    fold_id <- sample(rep(seq_len(k), length.out = nrow(data)))
+
+    for (f in seq_len(k)) {
+      train <- data[fold_id != f, , drop = FALSE]
+      valid <- data[fold_id == f, , drop = FALSE]
+
+      if (model == "logistic") {
+        fit <- glm(formula, data = train, family = binomial())
+        risk <- predict(fit, newdata = valid, type = "response")
+
+        out[[z]] <- data.frame(
+          repeat = r,
+          fold = f,
+          row = which(fold_id == f),
+          outcome = valid$mortality_30d,
+          risk = as.numeric(risk)
+        )
+      } else {
+        fit <- coxph(
+          formula,
+          data = train,
+          x = TRUE,
+          y = TRUE,
+          model = TRUE
+        )
+
+        risk <- drop(predictRisk(fit, newdata = valid, times = horizon))
+
+        out[[z]] <- data.frame(
+          repeat = r,
+          fold = f,
+          row = which(fold_id == f),
+          time = valid[[time_var]],
+          event = valid[[event_var]],
+          risk = as.numeric(risk)
+        )
+      }
+
+      z <- z + 1L
+    }
+  }
+
+  do.call(rbind, out)
+}
+
+cv_30d <- repeated_cv(
+  rose_30d,
+  final_30d,
+  model = "logistic",
+  k = 5L,
+  repeats = 20L,
+  seed = analysis_seed
+)
+
+cv_1y <- repeated_cv(
+  rose_1y,
+  final_1y,
+  model = "cox",
+  horizon = 365,
+  time_var = "followup_1y_days",
+  event_var = "event_1y",
+  k = 5L,
+  repeats = 20L,
+  seed = analysis_seed
+)
+
+cv_5y <- repeated_cv(
+  rose_5y,
+  final_5y,
+  model = "cox",
+  horizon = 1825,
+  time_var = "followup_5y_days",
+  event_var = "event_5y",
+  k = 5L,
+  repeats = 20L,
+  seed = analysis_seed
+)
 
 dd_30d <- datadist(rose_30d)
 options(datadist = "dd_30d")
@@ -139,6 +249,11 @@ models <- list(
     model_30d = glm_30d,
     model_1y = cox_1y,
     model_5y = cox_5y
+  ),
+  cross_validation = list(
+    predictions_30d = cv_30d,
+    predictions_1y = cv_1y,
+    predictions_5y = cv_5y
   ),
   nomogram = list(
     model_30d = lrm_30d,

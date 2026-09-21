@@ -1,3 +1,4 @@
+library(caret)
 library(MASS)
 library(pROC)
 library(riskRegression)
@@ -112,135 +113,100 @@ glm_30d <- glm(final_30d, data = rose_30d, family = binomial())
 cox_1y <- coxph(final_1y, data = rose_1y, x = TRUE, y = TRUE, model = TRUE)
 cox_5y <- coxph(final_5y, data = rose_5y, x = TRUE, y = TRUE, model = TRUE)
 
-repeated_cv <- function(
-    data, formula, model = c("logistic", "cox"),
-    horizon = NULL, time_var = NULL, event_var = NULL,
+cv_auc <- function(
+    data, formula, event_var,
+    model = c("logistic", "cox"),
+    horizon = NULL, time_var = NULL,
     k = 5L, repeats = 20L, seed = 123L) {
 
   model <- match.arg(model)
   set.seed(seed)
-  out <- vector("list", k * repeats)
+
+  auc_values <- numeric(k * repeats)
   z <- 1L
 
   for (r in seq_len(repeats)) {
-    fold_id <- sample(rep(seq_len(k), length.out = nrow(data)))
+    folds <- caret::createFolds(
+      data[[event_var]],
+      k = k,
+      list = TRUE
+    )
 
     for (f in seq_len(k)) {
-      train <- data[fold_id != f, , drop = FALSE]
-      valid <- data[fold_id == f, , drop = FALSE]
+      train <- data[-folds[[f]], , drop = FALSE]
+      valid <- data[folds[[f]], , drop = FALSE]
+
+      if (length(unique(valid[[event_var]])) < 2L) {
+        auc_values[z] <- NA_real_
+        z <- z + 1L
+        next
+      }
 
       if (model == "logistic") {
         fit <- glm(formula, data = train, family = binomial())
         risk <- predict(fit, newdata = valid, type = "response")
-
-        out[[z]] <- data.frame(
-          repeat = r,
-          fold = f,
-          row = which(fold_id == f),
-          outcome = valid$mortality_30d,
-          risk = as.numeric(risk)
-        )
+        outcome <- valid[[event_var]]
       } else {
-        fit <- coxph(
-          formula,
-          data = train,
-          x = TRUE,
-          y = TRUE,
-          model = TRUE
-        )
-
-        risk <- drop(predictRisk(fit, newdata = valid, times = horizon))
-
-        out[[z]] <- data.frame(
-          repeat = r,
-          fold = f,
-          row = which(fold_id == f),
-          time = valid[[time_var]],
-          event = valid[[event_var]],
-          risk = as.numeric(risk)
+        fit <- coxph(formula, data = train)
+        sf <- survfit(fit, newdata = valid)
+        risk <- 1 - as.vector(summary(sf, times = horizon)$surv)
+        outcome <- ifelse(
+          valid[[time_var]] <= horizon & valid[[event_var]] == 1,
+          1L,
+          0L
         )
       }
 
+      auc_values[z] <- as.numeric(
+        auc(roc(outcome, risk, quiet = TRUE, direction = "<"))
+      )
       z <- z + 1L
     }
   }
 
-  do.call(rbind, out)
-}
-
-cv_30d <- repeated_cv(
-  rose_30d,
-  final_30d,
-  model = "logistic",
-  k = 5L,
-  repeats = 20L,
-  seed = analysis_seed
-)
-
-cv_1y <- repeated_cv(
-  rose_1y,
-  final_1y,
-  model = "cox",
-  horizon = 365,
-  time_var = "followup_1y_days",
-  event_var = "event_1y",
-  k = 5L,
-  repeats = 20L,
-  seed = analysis_seed
-)
-
-cv_5y <- repeated_cv(
-  rose_5y,
-  final_5y,
-  model = "cox",
-  horizon = 1825,
-  time_var = "followup_5y_days",
-  event_var = "event_5y",
-  k = 5L,
-  repeats = 20L,
-  seed = analysis_seed
-)
-
-status_at_horizon <- function(time, event, horizon) {
-  ifelse(
-    event == 1 & time <= horizon,
-    1L,
-    ifelse(time >= horizon, 0L, NA_integer_)
-  )
-}
-
-fold_auc <- function(data, outcome) {
-  groups <- interaction(data$repeat, data$fold, drop = TRUE)
-
-  values <- vapply(
-    split(data, groups),
-    function(x) {
-      keep <- !is.na(x[[outcome]]) & !is.na(x$risk)
-      y <- x[[outcome]][keep]
-      r <- x$risk[keep]
-
-      if (length(unique(y)) < 2L) {
-        return(NA_real_)
-      }
-
-      as.numeric(auc(roc(y, r, quiet = TRUE, direction = "<")))
-    },
-    numeric(1)
-  )
+  auc_values <- auc_values[!is.na(auc_values)]
+  mean_auc <- mean(auc_values)
+  se_auc <- sd(auc_values) / sqrt(length(auc_values))
 
   c(
-    mean_auc = mean(values, na.rm = TRUE),
-    sd_auc = sd(values, na.rm = TRUE)
+    mean_auc = mean_auc,
+    lower_95 = mean_auc - qnorm(0.975) * se_auc,
+    upper_95 = mean_auc + qnorm(0.975) * se_auc
   )
 }
 
-cv_1y$outcome <- status_at_horizon(cv_1y$time, cv_1y$event, 365)
-cv_5y$outcome <- status_at_horizon(cv_5y$time, cv_5y$event, 1825)
-
 cv_stability <- rbind(
-  "30-day" = fold_auc(cv_30d, "outcome"),
-  "1-year" = fold_auc(cv_1y, "outcome"),
-  "5-year" = fold_auc(cv_5y, "outcome")
+  "30-day" = cv_auc(
+    rose_30d,
+    final_30d,
+    event_var = "mortality_30d",
+    model = "logistic",
+    k = 5L,
+    repeats = 20L,
+    seed = analysis_seed
+  ),
+  "1-year" = cv_auc(
+    rose_1y,
+    final_1y,
+    event_var = "event_1y",
+    model = "cox",
+    horizon = 365,
+    time_var = "followup_1y_days",
+    k = 5L,
+    repeats = 20L,
+    seed = analysis_seed
+  ),
+  "5-year" = cv_auc(
+    rose_5y,
+    final_5y,
+    event_var = "event_5y",
+    model = "cox",
+    horizon = 1825,
+    time_var = "followup_5y_days",
+    k = 5L,
+    repeats = 20L,
+    seed = analysis_seed
+  )
 )
 
 dd_30d <- datadist(rose_30d)
@@ -293,12 +259,7 @@ models <- list(
     model_1y = cox_1y,
     model_5y = cox_5y
   ),
-  cross_validation = list(
-    predictions_30d = cv_30d,
-    predictions_1y = cv_1y,
-    predictions_5y = cv_5y,
-    stability = cv_stability
-  ),
+  cross_validation = cv_stability,
   nomogram = list(
     model_30d = lrm_30d,
     model_1y = cph_1y,

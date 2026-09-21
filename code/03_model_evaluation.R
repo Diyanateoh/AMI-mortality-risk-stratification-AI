@@ -57,12 +57,8 @@ class_metrics <- function(outcome, risk) {
   )
 }
 
-status_at_horizon <- function(time, event, horizon) {
-  ifelse(
-    event == 1 & time <= horizon,
-    1L,
-    ifelse(time >= horizon, 0L, NA_integer_)
-  )
+classification_status <- function(time, event, horizon) {
+  as.integer(event == 1 & time <= horizon)
 }
 
 calibrate_binary <- function(outcome, risk, B = 1000L, seed = 123L) {
@@ -196,13 +192,13 @@ risk_5y <- drop(
   )
 )
 
-outcome_1y <- status_at_horizon(
+outcome_1y <- classification_status(
   d$test_long$followup_1y_days,
   d$test_long$event_1y,
   365
 )
 
-outcome_5y <- status_at_horizon(
+outcome_5y <- classification_status(
   d$test_long$followup_5y_days,
   d$test_long$event_5y,
   1825

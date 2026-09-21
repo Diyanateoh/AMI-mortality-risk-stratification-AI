@@ -29,7 +29,7 @@ prepare_cluster_data <- function(data, variables) {
   x
 }
 
-fit_kproto <- function(x, seed = 123L) {
+fit_kproto <- function(x, selected_k = 3L, seed = 123L) {
   k_values <- 2:6
   elbow <- numeric(length(k_values))
 
@@ -43,10 +43,11 @@ fit_kproto <- function(x, seed = 123L) {
   }
 
   set.seed(seed)
-  fit <- kproto(x, k = 3, verbose = FALSE)
+  fit <- kproto(x, k = selected_k, verbose = FALSE)
 
   list(
     fit = fit,
+    selected_k = selected_k,
     elbow = data.frame(
       k = k_values,
       total_withinss = elbow
@@ -91,6 +92,12 @@ cluster_tests <- function(data, variables, cluster) {
   data.frame(variable = variables, p_value = as.numeric(p))
 }
 
+mortality_test <- function(cluster, mortality) {
+  suppressWarnings(
+    chisq.test(table(cluster, mortality), correct = FALSE)$p.value
+  )
+}
+
 heatmap_matrix <- function(profile) {
   mat <- t(as.matrix(profile[, setdiff(names(profile), c("cluster", "n")), drop = FALSE]))
   colnames(mat) <- paste0("Cluster ", profile$cluster)
@@ -133,22 +140,40 @@ profile_5y <- cluster_profile(
   d$long$event_5y
 )
 
-tests_30d <- cluster_tests(
-  d$short,
-  vars_30d,
-  d$short$cluster_30d
+tests_30d <- bind_rows(
+  cluster_tests(
+    d$short,
+    vars_30d,
+    d$short$cluster_30d
+  ),
+  data.frame(
+    variable = "mortality_30d",
+    p_value = mortality_test(d$short$cluster_30d, d$short$mortality_30d)
+  )
 )
 
-tests_1y <- cluster_tests(
-  d$long,
-  vars_1y,
-  d$long$cluster_1y
+tests_1y <- bind_rows(
+  cluster_tests(
+    d$long,
+    vars_1y,
+    d$long$cluster_1y
+  ),
+  data.frame(
+    variable = "mortality_1y",
+    p_value = mortality_test(d$long$cluster_1y, d$long$event_1y)
+  )
 )
 
-tests_5y <- cluster_tests(
-  d$long,
-  vars_5y,
-  d$long$cluster_5y
+tests_5y <- bind_rows(
+  cluster_tests(
+    d$long,
+    vars_5y,
+    d$long$cluster_5y
+  ),
+  data.frame(
+    variable = "mortality_5y",
+    p_value = mortality_test(d$long$cluster_5y, d$long$event_5y)
+  )
 )
 
 heat_30d <- heatmap_matrix(profile_30d)

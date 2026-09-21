@@ -119,9 +119,23 @@ x_30d <- prepare_cluster_data(d$short, vars_30d)
 x_1y <- prepare_cluster_data(d$long, vars_1y)
 x_5y <- prepare_cluster_data(d$long, vars_5y)
 
-cluster_30d <- fit_kproto(x_30d, analysis_seed)
-cluster_1y <- fit_kproto(x_1y, analysis_seed)
-cluster_5y <- fit_kproto(x_5y, analysis_seed)
+cluster_30d <- fit_kproto(
+  x_30d,
+  selected_k = 3L,
+  seed = analysis_seed
+)
+
+cluster_1y <- fit_kproto(
+  x_1y,
+  selected_k = 3L,
+  seed = analysis_seed
+)
+
+cluster_5y <- fit_kproto(
+  x_5y,
+  selected_k = 3L,
+  seed = analysis_seed
+)
 
 d$short$cluster_30d <- factor(cluster_30d$fit$cluster)
 d$long$cluster_1y <- factor(cluster_1y$fit$cluster)

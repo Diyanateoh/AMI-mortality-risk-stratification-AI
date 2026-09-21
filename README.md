@@ -4,13 +4,15 @@ R code corresponding to the analyses reported in the manuscript *Interpretable D
 
 The repository covers data preparation, AIC-based logistic and Cox regression models, repeated five-fold cross-validation, nomogram construction, held-out test-set evaluation, ROSE sensitivity analyses, and k-prototypes clustering.
 
+ROSE was used only within the model-development training data; the held-out test sets were not resampled and were reserved for final performance evaluation. Classification thresholds used for sensitivity, specificity, accuracy, and confusion-matrix summaries were Youden-index–based descriptive thresholds.
+
 ## Code
 
 Run the scripts in numerical order from the repository root.
 
 - `code/01_data_preparation.R` — complete-case preparation and 70:30 training/held-out test partitioning
 - `code/02_model_development.R` — ROSE training data, AIC selection, repeated five-fold cross-validation (20 repeats), logistic/Cox models, and nomograms
-- `code/03_model_evaluation.R` — held-out test-set evaluation reported in the manuscript
+- `code/03_model_evaluation.R` — held-out test-set evaluation reported in the manuscript, including discrimination, calibration, Brier score, decision curve analysis, and descriptive classification summaries
 - `code/04_sensitivity_analysis.R` — ROSE sensitivity analysis corresponding to Table S2 and Fig. S1
 - `code/05_clustering.R` — k-prototypes clustering corresponding to the reported cluster analyses
 

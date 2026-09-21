@@ -27,4 +27,4 @@ Coding follows the manuscript and supplementary information: sex (1 male, 2 fema
 
 ## Software
 
-R 4.4.2. Packages used in the analysis scripts: `MASS`, `ROSE`, `rms`, `survival`, `riskRegression`, `pROC`, `dcurves`, `clustMixType`, `dplyr`, `readr`, `tidyr`, and `pheatmap`.
+R 4.4.2. Packages used in the analysis scripts: `caret`, `MASS`, `ROSE`, `rms`, `survival`, `riskRegression`, `pROC`, `dcurves`, `clustMixType`, `dplyr`, `readr`, `tidyr`, and `pheatmap`.
